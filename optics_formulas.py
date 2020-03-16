@@ -796,7 +796,7 @@ class OpticsCalculator:
     
     @staticmethod
     def get_extension_closeup_magnification(f,extension=0.,D=0,magnificaton_lens=0.,with_keys=False):
-        ''' #16 Magnification for Tube Extension and Close Up Lens Combined
+        ''' #15 Magnification for Tube Extension and Close Up Lens Combined
             will simplify to extension magnification for tube extension if D is 0
             http://www.herbig-3d.de/german/kameraoptik.htm
         '''
@@ -816,7 +816,7 @@ class OpticsCalculator:
 
     @staticmethod
     def get_dof_macro(k,magnification,sensor_type=OpticsConstants.SENSOR_FF,with_keys=False):
-        ''' #17 DOF Calculation for macro case (neglecting Pupil Magnification)
+        ''' #16 DOF Calculation for macro case (neglecting Pupil Magnification)
             On Macro Photography, Check out
             http://www.cambridgeincolour.com/tutorials/macro-photography-intro.htm
             http://www.dofmaster.com/equations.html
@@ -841,7 +841,7 @@ class OpticsCalculator:
     @staticmethod
     def get_fisheye_projection(f,alpha=0,projection=OpticsConstants.PROJECTION_RECTILINEAR,
                                anglefactor=None,with_keys=False):
-        ''' #18 Returns fisheye projection for focal length, incident angle, projection
+        ''' #17 Returns fisheye projection for focal length, incident angle, projection
             in case anglefactor is not supplied, default will be taken
             also returns lambda function(f,alpha,factor)
             http://pt4pano.com/de/blog/samyang-f2812mm-fullframe
@@ -874,7 +874,7 @@ class OpticsCalculator:
 
     @staticmethod
     def get_fisheye_lens_projection(lens,alpha,with_keys=False):
-        ''' #19 gets specific lens specs for a given fisheye
+        ''' #18 gets specific lens specs for a given fisheye
         '''
         c,o,_ = OpticsCalculator.bootstrap()
         if not ( lens in c.LENSES ):
@@ -897,7 +897,7 @@ class OpticsCalculator:
     
     @staticmethod
     def get_cropped_resolution(megapixels=24,crop=0.5,with_keys=False):
-        ''' #20 ImageCrop Functions: Cropped Image Size in Megapixels
+        ''' #19 ImageCrop Functions: Cropped Image Size in Megapixels
         Cropped Megapixels. Let
         a) d = MP / A ( d: Pixel Density; MP: Megapixels; A:Area )
         b) A = w * h = R * h * h (width * height/R Image Ratio)
@@ -918,7 +918,7 @@ class OpticsCalculator:
     
     @staticmethod
     def get_crop_effective_focal_length(f=50,crop=0.5,with_keys=False):
-        ''' #21 Image Crop Functions: Cropped equivalent focal length
+        ''' #20 Image Crop Functions: Cropped equivalent focal length
             In essence the effective Focal length would result, if the
             cropped image would hit the ENTIRE sensor (instead of a section only)
             f: focal length / s:sensor length / s': cropped sensor length
@@ -946,7 +946,7 @@ class OpticsCalculator:
                                     sensor=OpticsConstants.SENSOR_APSC,
                                     sensor_target=OpticsConstants.SENSOR_FF,
                                     with_keys=False):
-        ''' ##22 Calculates equivalent lens specs for a given sensor type to a target sensor type
+        ''' ##21 Calculates equivalent lens specs for a given sensor type to a target sensor type
         '''
         c,o,_ = OpticsCalculator.bootstrap()
         specs_source = o.get_sensor_specs(sensor,with_keys=False)
@@ -966,7 +966,7 @@ class OpticsCalculator:
     @staticmethod
     def get_astro_speed(f=50,k=2.8,sensor_type=OpticsConstants.SENSOR_FF,megapixels=24,
                         dimension=OpticsConstants.DIMENSION_WIDTH,with_keys=False):
-        ''' #23 calculates pixel velocity due to earth rotation and astro exposure time
+        ''' #22 calculates pixel velocity due to earth rotation and astro exposure time
             according to 500/T rule and NPF Rule
             assumption: rotation equivalent to one day so camera speed is 
             24 hours = 360 degress -> 1hr = 15deg -> 1min = 0,24deg -> 1sec = 0.0041deg
@@ -1007,7 +1007,7 @@ class OpticsCalculator:
                   sensor_length_per_degree,pixels_per_degree,length_per_second,pixels_per_second,crop,
                   astro500exposure,length_astro500_exposure,pixels_astro500_exposure,pixel_pitch,
                   astroNPFexposure,length_astroNPF_exposure,pixels_astroNPF_exposure)
-                  
+
         params_out = dict(zip(result_keys,result))        
         params_in  = dict( zip( (c.FOCAL_LENGTH_CLOSEUP,c.APERTURE_NUMBER,c.SENSOR,c.PIXEL_NUMBER,c.DIMENSION),
                                 (f,k,sensor_type,megapixels,dimension) ) )        
