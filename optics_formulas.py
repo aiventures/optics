@@ -555,7 +555,7 @@ class OpticsCalculator:
         return result
     
     @staticmethod
-    def get_diffraction_disc_diameter(k,lambda_nm=OpticsConstants.STANDARD_WAVELENGTH,with_keys=False):
+    def get_diffraction_dmeter(k,lambda_nm=OpticsConstants.STANDARD_WAVELENGTH,with_keys=False):
         """ #7 gets the diffraction disc diameter in um for given aperture number and wavelength lambda
            default wavelength is 550nm 
            Diffraction Disc Radius
@@ -737,7 +737,6 @@ class OpticsCalculator:
             stopWidth: number of stops for single f Stop, eg use stopWidth = 3 for 1/3 of a stop
             numStops: Number of stopWidths
             Examples: fStop(1,1,1)=1,4; fStop(1,1,2)=2; fStop(1.4,1,1)=2; fStop(1,3,3)=1.4 , ...
-            http://www.mopswerk.de/gray-card-dynamic-range-f-stop/
         """
         c,o,_ = OpticsCalculator.bootstrap()
         f_stop_factor = sqrt(pow(10,(0.3/stop_width)))
@@ -918,7 +917,7 @@ class OpticsCalculator:
     
     @staticmethod
     def get_crop_effective_focal_length(f=50,crop=0.5,with_keys=False):
-        ''' #20 Image Crop Functions: Cropped equivalent focal length
+        ''' #20 Image Crop Functions: Cropped effective focal length
             In essence the effective Focal length would result, if the
             cropped image would hit the ENTIRE sensor (instead of a section only)
             f: focal length / s:sensor length / s': cropped sensor length
