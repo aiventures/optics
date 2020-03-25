@@ -87,6 +87,7 @@ class OpticsConstants:
     DIRECTION_HORI = "DirectionHorizontal"
     DIRECTION_VERT = "DirectionVertical"
     DIRECTION_DIAG = "DirectionDiagonal"  
+    SOLID_ANGLE_IN_4PI = "SolidAngle_4Pi"
     DIRECTIONS = [ DIRECTION_HORI,DIRECTION_VERT,DIRECTION_DIAG ]
     MAP_DIMENSION2DIRECTION = dict(zip((DIMENSION_WIDTH,DIMENSION_HEIGHT,DIMENSION_DIAGONAL),
                                        (DIRECTION_HORI,DIRECTION_VERT,DIRECTION_DIAG)))
@@ -135,7 +136,6 @@ class OpticsConstants:
     FAR_POINT = "FarPoint_m"
     DEPTH_OF_FIELD = "DepthOfField_m"
     DEPTH_OF_FIELD_MACRO = "DepthOfFieldMacro_mm"
-    SOLID_ANGLE_IN_4PI = "SolidAngle_4Pi"
     ISO = "ISO"
     CROP = "Crop"
     CROP_RELATIVE = "CropRelative"
@@ -288,7 +288,8 @@ class OpticsCalculator:
         """ Unfreeze a single calculation result: reverses frozenset key back to dict 
             and extracts result dictionary as key value tuple
         """
-        return (dict(list(v.keys())[0]),list(v.values())[0])
+        keys = dict(list(v.keys()).pop()._asdict())
+        return (keys,list(v.values())[0])
     
     @staticmethod
     def convert_to_tuple(name,d):
