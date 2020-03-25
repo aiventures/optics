@@ -1014,3 +1014,10 @@ class OpticsCalculator:
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.ASTRO_SPEED,key_dict=params_in)
         return result
+
+# Further IDeas
+# calculation: resolution dpi, can the eye discern it? 
+# https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
+# Resolution eye ~ 2  angle minute = 2* 360° / (24 * 60 )  = 0.3 deg   visus 2
+# Visus 1' / individual resolution    
+# https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
