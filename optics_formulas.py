@@ -356,10 +356,11 @@ class OpticsCalculator:
             sensorSpecs[c.DIMENSION_LP_PER_MILIMETER] = sensorSpecs[c.DIMENSION_PIXEL_NUM_HEIGHT] / (2.0 * h)
             sensorSpecs[c.DIMENSION_LP_PER_PICTURE_HEIGHT] = sensorSpecs[c.DIMENSION_PIXEL_NUM_HEIGHT] / 2.0
         key_dict = {c.SENSOR:sensor_type,c.DIMENSION_MEGAPIXEL_NUMBER:megapixels}
+        #round sensor specs
+        sensorSpecs =  {k: round(v,2) for k, v in sensorSpecs.items()} 
         result = o.get_results(result_dict=sensorSpecs,with_keys=with_keys,
                                tuple_name=c.SENSOR,key_dict=key_dict)
-        result = {k: round(v,2) for k, v in result.items()}
-        
+                     
         return result
             
     @staticmethod
