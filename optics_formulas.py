@@ -46,6 +46,7 @@ class OpticsConstants:
     DIMENSION_WIDTH = "Width_mm"
     DIMENSION_HEIGHT = "Height_mm"
     DIMENSION_DIAGONAL = "Diagonal_mm"
+    DIMENSION_1MM = 1.0
     DIMENSION_CROP = "Crop_1"
     DIMENSION_RATIO = "Ratio_1"
     DIMENSION_AREA = "Area_mm2"
@@ -100,7 +101,6 @@ class OpticsConstants:
     STANDARDS = [ STANDARD_WAVELENGTH,STANDARD_ISO ]
     EARTH_ROTATION_SPEED = 360. / (24*60*60)  # 0,00416 degrees / second
     
-    
     # Other Constants
     SENSOR = "Sensor"
     SENSOR_TARGET = "SensorTarget"
@@ -118,6 +118,7 @@ class OpticsConstants:
     CLOSEUP_FOCAL_LENGTH = "CloseupFocalLength_mm"    
     EXTENSION = "Extension_mm"   
     FIELD_OF_VIEW = "FieldOfView_deg"
+    FIELD_OF_VIEW_MM = "FieldOfView_DegPerMm"
     CIRCLE_OF_CONFUSION = "CircleOfConfusion_um"
     WAVELENGTH = "WaveLength_nm"
     APERTURE_NUMBER = "ApertureNumber_1"
@@ -186,7 +187,7 @@ class OpticsConstants:
     # fisheye factor in PtGui https://www.ptgui.com/support.html#3_28
     INCIDENT_ANGLE = "IncidentAngle"
     ANGLE_FACTOR = "AngleFactor"
-    IMAGE_PROJECTION = "IMageProjection_mm"
+    IMAGE_PROJECTION = "ImageProjectionMM"
     PROJECTION_RECTILINEAR = "Rectilinear"
     PROJECTION_EQUIANGULAR = "Equiangular"
     PROJECTION_STEREOGRAPHIC = "Stereographic"
@@ -381,11 +382,12 @@ class OpticsCalculator:
         """
         c,o,specs = OpticsCalculator.bootstrap(sensor_type)
         specs_dim = [ specs[c.DIMENSION_WIDTH],specs[c.DIMENSION_HEIGHT],specs[c.DIMENSION_DIAGONAL]]
-        
-        fov = list(map(lambda d:degrees(2*atan(d/(2*focal_length))),specs_dim))
-        
-        fov_keys = [ c.DIRECTION_HORI,c.DIRECTION_VERT,c.DIRECTION_DIAG ]
+   
+        fov = list(map(lambda d:degrees(2*atan(d/(2*focal_length))),specs_dim))        
+        fov_keys = [ c.DIRECTION_HORI,c.DIRECTION_VERT,c.DIRECTION_DIAG]
         result_dict = dict(zip(fov_keys, fov))     
+        result_dict[c.FIELD_OF_VIEW_MM] = result_dict[c.DIRECTION_HORI] / specs[c.DIMENSION_WIDTH]
+
         # calculate fraction of sphere
         h = radians(result_dict[c.DIRECTION_HORI])
         v = radians(result_dict[c.DIRECTION_VERT])
@@ -517,47 +519,46 @@ class OpticsCalculator:
         params_in  = dict( zip( (c.FIELD_OF_VIEW,c.SENSOR,c.DIRECTION),
                                 (fov,sensor_type,direction) ) )        
         params_out = dict( zip( (c.DIMENSION,c.LENGTH,c.FOCAL_LENGTH),
-                                (sensor_spec,sensor_length,equivalent_focal_length) ) )
+                                (sensor_spec,2*sensor_length,equivalent_focal_length) ) )
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.EQUIVALENT_FOCAL_LENGTH,key_dict=params_in)
         return result
-    
+
     @staticmethod
-    def get_crop_focal_length_equivalent(f,crop,sensor_type=OpticsConstants.SENSOR_FF,
-                                         direction=OpticsConstants.DIRECTION_HORI,with_keys=False):
-        """ #6 Equivalent Focal Length after Crop was applied  
-            CropFactor: Value between 0 and 1 (1:No Crop 0:Cropped into nothing)
-        """    
-        
+    def get_crop_focal_length_equivalent(f,crop,sensor_type=OpticsConstants.SENSOR_FF,direction=OpticsConstants.DIRECTION_HORI,with_keys=False):
+
+        """ #6 Equivalent Focal Length after Crop was applied
+             CropFactor: Value between 0 and 1 (1:No Crop 0:Cropped into nothing)
+        """
         # get sensor Specs and apply crop factor
-        c,o,_ = OpticsCalculator.bootstrap(sensor_type=sensor_type)
+        c ,o,_ = OpticsCalculator.bootstrap(sensor_type=sensor_type)
         if direction == c.DIRECTION_HORI:
             sensor_spec = c.DIMENSION_WIDTH
         elif direction == c.DIRECTION_VERT:
             sensor_spec = c.DIMENSION_HEIGHT
         else:
-            sensor_spec = c.DIMENSION_DIAGONAL
-            
+            sensor_spec = c.DIMENSION_DIAGONAL       
+
         sensor_length_cropped = o.get_sensor_specs(sensor_type=sensor_type,with_keys=False)[sensor_spec] * crop
         # get same spec for full frame sensor
-        # specs_ff = o.get_sensor_specs(sensor_type=c.SENSOR_FF,with_keys=False)
+        #specs_ff = o.get_sensor_specs(sensor_type=c.SENSOR_FF,with_keys=False)
         sensor_length_cropped_ff = o.get_sensor_specs(sensor_type=c.SENSOR_FF,with_keys=False)[sensor_spec] * crop
-        crop_ff = sensor_length_cropped_ff / sensor_length_cropped
-        # get new cropped field of view
-        fov_cropped = degrees ( 2 * atan(sensor_length_cropped / (2 * f)) )
-        cropped_focal_length = o.get_equivalent_focal_length(fov_cropped,sensor_type=sensor_type,
-                                    direction=direction,with_keys=False)
-        cropped_focal_length_ff = round( cropped_focal_length * crop_ff,3)
+        crop_ff = round(sensor_length_cropped_ff / sensor_length_cropped,2)
+        # get new cropped field of view        
+        fov_cropped = round( degrees ( 2 * atan(sensor_length_cropped / (2 * float(f) )) ),2)
+        cropped_focal_length = round(o.get_equivalent_focal_length(fov_cropped,sensor_type=sensor_type,
+                                    direction=direction,with_keys=False)[c.FOCAL_LENGTH],1)
+        cropped_focal_length_ff = round( cropped_focal_length * crop_ff,1)
         params_in  = dict( zip( (c.FOCAL_LENGTH,c.CROP,c.SENSOR,c.DIRECTION),
                                 (f,crop,sensor_type,direction) ) )        
         params_out = dict( zip( (c.DIMENSION,c.LENGTH_CROPPED,c.CROP,c.FIELD_OF_VIEW,c.CROP_FOCAL_LENGTH_EQUIVALENT,c.FOCAL_LENGTH_FF),
                                 (sensor_spec,sensor_length_cropped,crop_ff,fov_cropped,cropped_focal_length,cropped_focal_length_ff) ) )      
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.CROP_FOCAL_LENGTH_EQUIVALENT,key_dict=params_in)
-        return result
-    
+        return result           
+
     @staticmethod
-    def get_diffraction_dmeter(k,lambda_nm=OpticsConstants.STANDARD_WAVELENGTH,with_keys=False):
+    def get_diffraction_disc_diameter(k,lambda_nm=OpticsConstants.STANDARD_WAVELENGTH,with_keys=False):
         """ #7 gets the diffraction disc diameter in um for given aperture number and wavelength lambda
            default wavelength is 550nm 
            Diffraction Disc Radius
@@ -570,13 +571,11 @@ class OpticsCalculator:
         c,o,_ = OpticsCalculator.bootstrap()
         diffraction_disc_diameter = ( 1.22 * lambda_nm * k ) / 1000
 
-        params_in  = dict( zip( (c.APERTURE_NUMBER,c.WAVELENGTH),
-                                (k,lambda_nm) ) )        
-        params_out = dict( zip( (c.DIFFRACTION_DISC_DIAMETER),
-                                (diffraction_disc_diameter) ) )        
+        params_in  = dict( zip( (c.APERTURE_NUMBER,c.WAVELENGTH),(k,lambda_nm) ) )
+        params_out = {c.DIFFRACTION_DISC_DIAMETER:diffraction_disc_diameter}
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.DIFFRACTION_DISC_DIAMETER,key_dict=params_in)
-        return result        
+        return result      
     
     @staticmethod
     def get_optimum_aperture(sensor_type=OpticsConstants.SENSOR_FF,
@@ -621,8 +620,8 @@ class OpticsCalculator:
 
         params_in  = dict( zip( (c.OBJECT_DISTANCE,c.FOCAL_LENGTH),
                                 (distance,f) ) )        
-        params_out = dict( zip( (c.MAGNIFICATION),
-                                (magnification) ) )
+        params_out = {c.MAGNIFICATION:magnification} 
+
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.MAGNIFICATION,key_dict=params_in)
         return result
@@ -841,7 +840,7 @@ class OpticsCalculator:
 
     @staticmethod
     def get_fisheye_projection(f,alpha=0,projection=OpticsConstants.PROJECTION_RECTILINEAR,
-                               anglefactor=None,with_keys=False):
+                               anglefactor=None,with_keys=False,value_only=False):
         ''' #17 Returns fisheye projection for focal length, incident angle, projection
             in case anglefactor is not supplied, default will be taken
             also returns lambda function(f,alpha,factor)
@@ -871,6 +870,8 @@ class OpticsCalculator:
        
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.PROJECTION,key_dict=params_in)
+        if value_only is True:
+            result = image_projection
         return result 
 
     @staticmethod
@@ -886,9 +887,9 @@ class OpticsCalculator:
         projection = fisheye_lens_spec[c.PROJECTION_FUNCTION]
         factor = fisheye_lens_spec[c.PROJECTION_FACTOR] 
         image_projection = o.get_fisheye_projection(f,alpha,projection=projection,
-                                                    anglefactor=factor,with_keys=with_keys)
-        params_in  = dict( zip( (c.LENS,c.INCIDENT_ANGLE),
-                                (lens,alpha) ) )        
+                                                    anglefactor=factor,with_keys=with_keys,value_only=True)
+
+        params_in  = dict( zip( (c.LENS,c.INCIDENT_ANGLE),(lens,alpha) ) )    
         params_out = dict( zip( (c.FOCAL_LENGTH,c.PROJECTION,c.PROJECTION_FACTOR,c.IMAGE_PROJECTION),
                                 (f,projection,factor,image_projection) ) )
       
@@ -910,8 +911,7 @@ class OpticsCalculator:
         cropped_resolution = crop**2 * megapixels
         params_in  = dict( zip( (c.PIXEL_NUMBER,c.CROP),
                                 (megapixels,crop) ) )        
-        params_out = dict( zip( (c.RESOLUTION),
-                                (cropped_resolution) ) )
+        params_out = {c.RESOLUTION:cropped_resolution}
         
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
                                tuple_name=c.RESOLUTION,key_dict=params_in)
@@ -936,8 +936,7 @@ class OpticsCalculator:
 
         params_in  = dict( zip( (c.FOCAL_LENGTH,c.CROP),
                                 (f,crop) ) )        
-        params_out = dict( zip( (c.CROP_FOCAL_LENGTH_EFFECTIVE),
-                                (effective_crop_focal_length) ) )        
+        params_out = {c.CROP_FOCAL_LENGTH_EFFECTIVE:effective_crop_focal_length}     
         result = o.get_results(result_dict=params_out, with_keys=with_keys,
                                tuple_name=c.CROP_FOCAL_LENGTH,key_dict=params_in)
         return result
@@ -1010,7 +1009,7 @@ class OpticsCalculator:
                   astroNPFexposure,length_astroNPF_exposure,pixels_astroNPF_exposure)
 
         params_out = dict(zip(result_keys,result))        
-        params_in  = dict( zip( (c.FOCAL_LENGTH_CLOSEUP,c.APERTURE_NUMBER,c.SENSOR,c.PIXEL_NUMBER,c.DIMENSION),
+        params_in  = dict( zip( (c.FOCAL_LENGTH,c.APERTURE_NUMBER,c.SENSOR,c.PIXEL_NUMBER,c.DIMENSION),
                                 (f,k,sensor_type,megapixels,dimension) ) )        
     
         result = o.get_results(result_dict=params_out,with_keys=with_keys,
@@ -1023,3 +1022,5 @@ class OpticsCalculator:
 # Resolution eye ~ 2  angle minute = 2* 360° / (24 * 60 )  = 0.3 deg   visus 2
 # Visus 1' / individual resolution    
 # https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
+# tilt calculation scheimpflug equation
+# stacking step width / number of single steps
