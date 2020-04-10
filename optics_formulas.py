@@ -100,7 +100,7 @@ class OpticsConstants:
     STANDARD_ISO = 100
     STANDARDS = [ STANDARD_WAVELENGTH,STANDARD_ISO ]
     EARTH_ROTATION_SPEED = 360. / (24*60*60)  # 0,00416 degrees / second
-    
+       
     # Other Constants
     SENSOR = "Sensor"
     SENSOR_TARGET = "SensorTarget"
@@ -174,6 +174,7 @@ class OpticsConstants:
     IMAGE_DISTANCE = "ImageDistance"  
     IMAGE_HEIGHT = "ImageHeight"
     OBJECT_DISTANCE = "ObjectDistance"
+    FOCUS_DISTANCE = "FocusDistance"
     OBJECT_HEIGHT = "ObjectHeight"
     MAGNIFICATION = "Magnification_1"
     MAGNIFICATION_LENS = "MagnificationLens_1"
@@ -280,6 +281,29 @@ class OpticsConstants:
                           LENS_MADOKA:{   FOCAL_LENGTH:7.3,
                                           PROJECTION_FUNCTION:PROJECTION_ORTHOGRAPHIC,
                                           PROJECTION_FACTOR:None}  } 
+
+    # Constants for Tilt Shift Lens Calculations 
+    TILT_PARAMETERS = "TiltParameters"
+    ALPHA_TILT_ANGLE = "ALPHA_LensTiltInclination_deg"
+    J_LENS_AXIS_PIVOT_POINT = "J_LensAxisPivotPointDistance_mm"
+    PHI_SHARP_FOCUS_ANGLE = "PHI_InclinationAngleSharpFocus_deg"
+    PHI_ACC_FOCUS_ANGLE_NP = "PHI_AcceptableAngleSharpFocusNear_deg"
+    PHI_ACC_FOCUS_ANGLE_FP = "PHI_AcceptableAngleSharpFocusFar_deg"
+    PHI_ACC_FOCUS_FOV = "DELTA_PHI_AcceptableAngleSharpFocusFieldOfView_deg"
+    BETA_SHARP_FOCUS_ELEVATION = "BETA_ElevationAngleSharpFocus_deg"
+    BETA_ACC_FOCUS_ELEVATION_NP = "BETA_ElevationAngleSharpFocusNear_deg"
+    BETA_ACC_FOCUS_ELEVATION_FP = "BETA_ElevationAngleSharpFocusFar_deg"
+
+    PHI_ACC_ANGLE_OF_VIEW = "PHI_AngleOfViewAcceptableSharpFocus_deg"
+    S_TS_GEOMETRY_FACTOR = "S_TiltShiftGeometryFactor_1"
+    A_TS_RNIP = "A_TiltShiftLensRearNode2ImagePlane_mm"
+    A_TS_DIFF = "A_TiltShiftLensRearNodeRearImageDifference_mm"
+    A_TS_RNIP_NP = "A_TiltShiftLensRearNode2ImagePlaneNearPoint_mm"
+    A_TS_RNIP_FP = "A_TiltShiftLensRearNode2ImagePlaneFarPoint_mm"
+    FOCUS_ZONE_WIDTH = "D_ZOF_FocusZoneWidthPerpendicular_m"
+    ALPHA_SHIFT_UP = "ALPHA_UpperAngleShiftLens_deg"
+    ALPHA_SHIFT_DOWN = "ALPHA_LowerAngleShiftLens_deg"
+    ALPHA_SHIFT_FIELD_OF_VIEW = "ALPHA_FieldOfViewShiftLens_deg"
     
 class OpticsCalculator:
     """" Performs Opticál Calculations Useful for Photography """
@@ -1003,6 +1027,7 @@ class OpticsCalculator:
                        c.LENGTH_PER_DEG,c.PIXELS_PER_DEG,c.LENGTH_PER_SEC,c.PIXELS_PER_SEC,c.CROP,
                        c.ASTRO_500_RULE,c.ASTRO_500_LENGTH,c.ASTRO_500_PIXEL,c.DIMENSION_PIXEL_WIDTH,
                        c.ASTRO_NPF_RULE,c.ASTRO_NPF_LENGTH,c.ASTRO_NPF_PIXEL)
+
         result = (dimension,sensor_length,direction,num_pixels,fov,
                   sensor_length_per_degree,pixels_per_degree,length_per_second,pixels_per_second,crop,
                   astro500exposure,length_astro500_exposure,pixels_astro500_exposure,pixel_pitch,
@@ -1016,6 +1041,102 @@ class OpticsCalculator:
                                tuple_name=c.ASTRO_SPEED,key_dict=params_in)
         return result
 
+    @staticmethod
+    def get_tilt_lens_params(alpha=5.,f=50,k=None,A=None,
+                             sensor_type=OpticsConstants.SENSOR_FF,megapixels=24,dimension=OpticsConstants.DIMENSION_WIDTH,
+                             coc=None,focus_distance=None,with_keys=False):
+        ''' calculates parameters for tilt shift lenses, for details refer to 
+            Harold Merklinger - Focusing View Camera
+            http://www.trenholm.org/hmmerk/download.html
+            http://www.cs.cmu.edu/~ILIM/courses/vision-sensors/readings/ViewCam.pdf
+            Lester Wareham
+            http://www.zen20934.zen.co.uk/photography/tiltshift.htm
+            http://www.zen20934.zen.co.uk/photography/dof/dof.htm (found in archive.org)        
+
+        ''' 
+
+        c,o,specs = OpticsCalculator.bootstrap(sensor_type=sensor_type,megapixels=megapixels)
+
+        # circle of confusion
+        if coc is None:
+            coc = specs[c.CIRCLE_OF_CONFUSION]
+       
+        # convert coc to mm
+        coc = coc / 1000.
+
+        # Distance between Lens Rear Node to Image Plane / Add a small delta by default
+        if A is None:
+            A = 1.05 * f
+
+        if focus_distance is None:
+            D_SF = 1
+        else:
+            D_SF = focus_distance
+
+        alpha_rad = radians(alpha)
+
+        # Lens Axis to Pivot Point Distance
+        J = f / sin(alpha_rad)
+
+        # function to get inclination angle of plane of sharp focus 7 co,ple,entqrw qngle
+        phi = lambda l_alpha,l_f,l_A:degrees(atan(sin(l_alpha)/(cos(l_alpha)-(l_f/l_A))))
+        beta = lambda l_phi:(90-l_phi)
+
+        # sensor plane and image plane shift for near and far plane
+        s = f / ( coc * k )
+        A_NP = A / ( 1 - (1/s) )
+        A_FP = A / ( 1 + (1/s) )
+        A_DIFF = abs(A_NP-A_FP)
+
+        phi_SF = phi(alpha_rad,f,A)
+        phi_NP = phi(alpha_rad,f,A_NP)
+        phi_FP = phi(alpha_rad,f,A_FP)
+        delta_phi = abs(phi_FP-phi_NP)
+
+        beta_SF = beta(phi_SF)
+        beta_NP = beta(phi_NP)
+        beta_FP = beta(phi_FP)
+
+        # if object distance is given (in meters ), calculate zone of sharp focus perpendicular to 
+        # plane of sharp focus (between near and far plane). for this, calculate orthogonal
+        # plane intersecting at distance D from lens
+        beta_SF_rad = radians(beta_SF)
+        beta_NP_rad = radians(beta_NP)
+        beta_FP_rad = radians(beta_FP)
+
+        # (perpendicular) plane equation y = m_sf * x + y0_SF
+        m_SF = (-1.)/tan(beta_SF_rad)
+        y0_SF = D_SF / (cos(beta_SF_rad)*sin(beta_SF_rad))
+
+        # calculate intersections of NP and FP planes with perpendicular plane
+        x_is = lambda l_beta:(y0_SF/(tan(l_beta)-m_SF))
+        x_is_NP = x_is(beta_NP_rad)
+        x_is_FP = x_is(beta_FP_rad)
+        y_is_NP = tan(beta_NP_rad)*x_is_NP
+        y_is_FP = tan(beta_FP_rad)*x_is_FP
+        
+        # rest is pythagoras ...
+        focus_zone = sqrt((x_is_FP-x_is_NP)**2+ (y_is_FP-y_is_NP)**2)
+
+        params_in  = dict( zip( ( c.ALPHA_TILT_ANGLE, c.FOCAL_LENGTH, c.APERTURE_NUMBER, c.A_TS_RNIP,
+                                  c.SENSOR, c.PIXEL_NUMBER, c.DIMENSION, c.CIRCLE_OF_CONFUSION,c.FOCUS_DISTANCE ),
+                                ( alpha,f,k,A,sensor_type,megapixels,dimension,coc,focus_distance ) ) )            
+
+        result_keys = ( c.J_LENS_AXIS_PIVOT_POINT,  c.S_TS_GEOMETRY_FACTOR, 
+                        c.A_TS_RNIP_NP, c.A_TS_RNIP_FP, c.A_TS_DIFF,
+                        c.PHI_SHARP_FOCUS_ANGLE, c.PHI_ACC_FOCUS_ANGLE_NP, c.PHI_ACC_FOCUS_ANGLE_FP,
+                        c.BETA_SHARP_FOCUS_ELEVATION, c.BETA_ACC_FOCUS_ELEVATION_NP, c.BETA_ACC_FOCUS_ELEVATION_FP, 
+                        c.PHI_ACC_FOCUS_FOV, c.FOCUS_ZONE_WIDTH )
+        
+        result = ( J,s,A_NP,A_FP,A_DIFF,phi_SF,phi_NP,phi_FP,beta_SF,beta_NP,beta_FP,delta_phi,focus_zone )         
+        params_out = dict(zip(result_keys,result))        
+        params_out = dict(map(lambda item: (item[0], round(item[1],2)), params_out.items()))
+
+        result = o.get_results(result_dict=params_out,with_keys=with_keys,
+                               tuple_name=c.TILT_PARAMETERS,key_dict=params_in)          
+
+        return result
+
 # Further IDeas
 # calculation: resolution dpi, can the eye discern it? 
 # https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
@@ -1024,3 +1145,12 @@ class OpticsCalculator:
 # https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
 # tilt calculation scheimpflug equation
 # stacking step width / number of single steps
+# field of view magnification
+# # Tilt Shift 
+# Harold Merklinger - Focusing View Camera
+# http://www.trenholm.org/hmmerk/download.html
+# http://www.cs.cmu.edu/~ILIM/courses/vision-sensors/readings/ViewCam.pdf
+# Lester Wareham
+# http://www.zen20934.zen.co.uk/photography/tiltshift.htm
+# http://www.zen20934.zen.co.uk/photography/dof/dof.htm (found in archive.org)
+# Calculation of magnification for spotting scopes / telescopes / eyepieces
