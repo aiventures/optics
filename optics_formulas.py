@@ -105,6 +105,7 @@ class OpticsConstants:
     SENSOR = "Sensor"
     SENSOR_TARGET = "SensorTarget"
     FOCAL_LENGTH = "FocalLength_mm"
+    EFFECTIVE_FOCAL_LENGTH = "EffectiveFocalLength_mm"
     DIOPTERS = "Diopters_1perm"
     FOCAL_LENGTH_CROPPED = "FocalLengthCropped_mm"
     FOCAL_LENGTH_FF = "FocalLengthFullFrame_mm"
@@ -301,9 +302,28 @@ class OpticsConstants:
     A_TS_RNIP_NP = "A_TiltShiftLensRearNode2ImagePlaneNearPoint_mm"
     A_TS_RNIP_FP = "A_TiltShiftLensRearNode2ImagePlaneFarPoint_mm"
     FOCUS_ZONE_WIDTH = "D_ZOF_FocusZoneWidthPerpendicular_m"
-    ALPHA_SHIFT_UP = "ALPHA_UpperAngleShiftLens_deg"
-    ALPHA_SHIFT_DOWN = "ALPHA_LowerAngleShiftLens_deg"
-    ALPHA_SHIFT_FIELD_OF_VIEW = "ALPHA_FieldOfViewShiftLens_deg"
+
+    SHIFT_PARAMETERS = "ShiftParameters"
+    SHIFT = "Shift_mm"
+    ALPHA_SHIFT_UP = "ALPHA_UP_FOV_ShiftLens_deg"
+    ALPHA_SHIFT_DOWN = "ALPHA_DOWN_FOV_ShiftLens_deg"
+    ALPHA_SHIFT_FIELD_OF_VIEW = "ALPHA_FieldOfView_ShiftLens_deg"
+    DELTA_ALPHA_SHIFT_UP = "DELTA_ALPHA_UP_FOV_ShiftLens_deg"
+    DELTA_ALPHA_SHIFT_DOWN = "DELTA_ALPHA_DOWN_FOV_ShiftLens_deg"
+    SHIFT_GAIN_FOV = "ALPHA_Shiftlens_FieldOfVieGain_deg"
+    SHIFT_MAX_FOV = "Shiftlens_MaximumFieldOfView_deg"
+    SHIFT_EQUIVALENT_FOCAL_LENGTH = "Shiftlens_ShiftedEquivalentFocalLength_mm"    
+    EQUIVALENT_FOCAL_LENGTH = "EquivalentFocalLength_mm" 
+    SCOPE_PARAMETERS = "SCOPE_Parameters"
+    SCOPE_EXIT_PUPIL = "SCOPE_ExitPupil_mm"
+    SCOPE_REAL_FIELD_OF_VIEW = "SCOPE_RealFieldOfView_mm"
+    SCOPE_DIAMETER = "SCOPE_Diameter_mm"
+    SCOPE_RELATIVE_BRIGHTNESS = "SCOPE_RelativeBrightness_mm2"
+    SCOPE_TWILIGHT_FACTOR = "SCOPE_TwilightFactor_mm_1_2"
+    SCOPE_COVERED_FIELD = "SCOPE_CoveredField_m"  
+    SCOPE_PUPIL_EYE = "SCOPE_PupilEye_mm" 
+    SCOPE_LIGHT_COLLECTION_FACTOR = "SCOPE_LightCollectionFactor_1"    
+    SCOPE_ADDITIONAL_MAGNITUDE = "SCOPE_Magnitude_1"   
     
 class OpticsCalculator:
     """" Performs Opticál Calculations Useful for Photography """
@@ -390,7 +410,7 @@ class OpticsCalculator:
         return result
             
     @staticmethod
-    def get_field_of_view(focal_length,sensor_type=OpticsConstants.SENSOR_FF,with_keys=False):
+    def get_field_of_view(focal_length,sensor_type=OpticsConstants.SENSOR_FF,magnification=0,with_keys=False):
         """ #02 Calculate Field Of View Angles for given sensor and focal length 
             Field Of View is also calculated as fraction of unit sphere 4Pi     
             Field of view as fraction of a sphere / 4 Pi 
@@ -403,11 +423,13 @@ class OpticsCalculator:
                     => OMEGA = h * (-cos v  + cos 0  ) = h * ( 1 - cos v )
             Whole spehere: h = 2 Pi / v = Pi > OMEGA(Sphere) = 2 Pi (1 - cos Pi ) = 4 Pi
             OmegaIn4Pi = OMEGA / 4 Pi            
+            ALso consider magnification
+            https://en.wikipedia.org/wiki/Angle_of_view#Macro_photography
         """
         c,o,specs = OpticsCalculator.bootstrap(sensor_type)
         specs_dim = [ specs[c.DIMENSION_WIDTH],specs[c.DIMENSION_HEIGHT],specs[c.DIMENSION_DIAGONAL]]
-   
-        fov = list(map(lambda d:degrees(2*atan(d/(2*focal_length))),specs_dim))        
+        effective_focal_length = focal_length * (1+magnification)
+        fov = list(map(lambda d:degrees(2*atan(d/(2*effective_focal_length))),specs_dim))        
         fov_keys = [ c.DIRECTION_HORI,c.DIRECTION_VERT,c.DIRECTION_DIAG]
         result_dict = dict(zip(fov_keys, fov))     
         result_dict[c.FIELD_OF_VIEW_MM] = result_dict[c.DIRECTION_HORI] / specs[c.DIMENSION_WIDTH]
@@ -417,7 +439,8 @@ class OpticsCalculator:
         v = radians(result_dict[c.DIRECTION_VERT])
         omega_4pi = ( h * (1 - cos(v))) / (4*pi)
         result_dict[c.SOLID_ANGLE_IN_4PI] = omega_4pi
-        key_dict = {c.SENSOR:sensor_type,c.FOCAL_LENGTH:focal_length}
+        result_dict[c.EFFECTIVE_FOCAL_LENGTH] = effective_focal_length
+        key_dict = {c.SENSOR:sensor_type,c.FOCAL_LENGTH:focal_length,c.MAGNIFICATION:magnification}
         result = o.get_results(result_dict=result_dict,with_keys=with_keys,
                                tuple_name=c.FIELD_OF_VIEW,key_dict=key_dict)  
         return result        
@@ -436,13 +459,7 @@ class OpticsCalculator:
         im_height = specs[dimension] / 1000.
         
         direction = c.MAP_DIMENSION2DIRECTION[dimension]
-        '''
-        direction = c.DIRECTION_HORI        
-        if dimension == c.DIMENSION_DIAGONAL:
-            direction = c.DIRECTION_HORI
-        elif dimension == c.DIMENSION_HEIGHT:
-            direction = c.DIRECTION_VERT
-        '''
+
         key_list = (c.OBJECT_DISTANCE,c.OBJECT_HEIGHT,c.IMAGE_HEIGHT,c.SENSOR,c.DIRECTION)
         key_values = (obj_dist,obj_height,im_height,sensor_type,direction)
         key_dict = dict(zip(key_list,key_values))
@@ -1045,7 +1062,7 @@ class OpticsCalculator:
     def get_tilt_lens_params(alpha=5.,f=50,k=None,A=None,
                              sensor_type=OpticsConstants.SENSOR_FF,megapixels=24,dimension=OpticsConstants.DIMENSION_WIDTH,
                              coc=None,focus_distance=None,with_keys=False):
-        ''' calculates parameters for tilt shift lenses, for details refer to 
+        ''' #23 calculates parameters for tilt shift lenses, for details refer to 
             Harold Merklinger - Focusing View Camera
             http://www.trenholm.org/hmmerk/download.html
             http://www.cs.cmu.edu/~ILIM/courses/vision-sensors/readings/ViewCam.pdf
@@ -1137,20 +1154,117 @@ class OpticsCalculator:
 
         return result
 
-# Further IDeas
-# calculation: resolution dpi, can the eye discern it? 
-# https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
-# Resolution eye ~ 2  angle minute = 2* 360° / (24 * 60 )  = 0.3 deg   visus 2
-# Visus 1' / individual resolution    
-# https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
-# tilt calculation scheimpflug equation
-# stacking step width / number of single steps
-# field of view magnification
-# # Tilt Shift 
-# Harold Merklinger - Focusing View Camera
-# http://www.trenholm.org/hmmerk/download.html
-# http://www.cs.cmu.edu/~ILIM/courses/vision-sensors/readings/ViewCam.pdf
-# Lester Wareham
-# http://www.zen20934.zen.co.uk/photography/tiltshift.htm
-# http://www.zen20934.zen.co.uk/photography/dof/dof.htm (found in archive.org)
-# Calculation of magnification for spotting scopes / telescopes / eyepieces
+    @staticmethod
+    def get_shift_lens_params(f=50,shift=5.,
+                             sensor_type=OpticsConstants.SENSOR_FF,
+                             dimension=OpticsConstants.DIMENSION_WIDTH,
+                             megapixels=24.,with_keys=False):   
+        ''' #23 calculates parameters for shift lenses, for details refer to 
+            Lester Wareham
+            http://www.zen20934.zen.co.uk/photography/tiltshift.htm
+            http://www.zen20934.zen.co.uk/photography/dof/dof.htm (found in archive.org)        
+        '''                              
+
+        c,o,specs = OpticsCalculator.bootstrap(sensor_type=sensor_type,megapixels=megapixels)    
+
+        x = specs[dimension]
+        direction = c.MAP_DIMENSION2DIRECTION[dimension]
+        # get field of view for unshifted lens
+        fov_unshifted = o.get_field_of_view(f,sensor_type=sensor_type,with_keys=False)[direction]
+        # formula for shift
+        shift_f = lambda l_shift:degrees(atan((x+2*l_shift)/(2*f)))
+        
+        # new angle for upper half / fov gain or loss in corresponding direction
+        alpha_up = shift_f(shift)
+        delta_alpha_up = alpha_up - (fov_unshifted/2)
+        alpha_down = -1*shift_f(-1.*shift)
+        delta_alpha_down = (-1*(fov_unshifted/2))-alpha_down
+        fov_shifted = alpha_up - alpha_down
+
+        # calculated equivalent focal length in case lens would be shifted up and down  
+        fov_gain = max(delta_alpha_up,delta_alpha_down)
+        max_fov = fov_shifted + 2*fov_gain
+        equivalent_focal_length = x / (2*tan(radians(max_fov)/2))
+
+        params_in  = dict( zip( ( c.FOCAL_LENGTH,c.SHIFT,c.SENSOR,c.DIMENSION,c.PIXEL_NUMBER ),
+                                ( f, shift,sensor_type,dimension,megapixels ) ) ) 
+
+        result_keys = ( c.DIMENSION, c.FIELD_OF_VIEW,c.ALPHA_SHIFT_UP,c.DELTA_ALPHA_SHIFT_UP,
+                        c.ALPHA_SHIFT_DOWN,c.DELTA_ALPHA_SHIFT_DOWN,c.ALPHA_SHIFT_FIELD_OF_VIEW,
+                        c.SHIFT_GAIN_FOV,c.SHIFT_MAX_FOV,c.SHIFT_EQUIVALENT_FOCAL_LENGTH )
+        
+        result = ( x,fov_unshifted,alpha_up,delta_alpha_up,
+                   alpha_down,delta_alpha_down,fov_shifted,
+                   fov_gain,max_fov,equivalent_focal_length )
+
+        params_out = dict(zip(result_keys,result))        
+        params_out = dict(map(lambda item: (item[0], round(item[1],2)), params_out.items()))
+        params_out[c.DIRECTION] = direction
+
+        result = o.get_results(result_dict=params_out,with_keys=with_keys,
+                               tuple_name=c.SHIFT_PARAMETERS,key_dict=params_in)    
+
+        return result
+    
+    @staticmethod
+    def get_scope_params(magnification=10,diameter=50,
+                         real_field_of_view=56,
+                         sensor_type=OpticsConstants.SENSOR_FF,
+                         dimension=OpticsConstants.DIMENSION_WIDTH,
+                         megapixels=24,
+                         distance = 1000,
+                         pupil_eye = 7,
+                         with_keys=False):
+        ''' returns optical parameters for spotting scopes / binoculars
+            source http://www.tierundnatur.de/fernglas.htm
+        '''
+        c,o,specs = OpticsCalculator.bootstrap(sensor_type=sensor_type,megapixels=megapixels)  
+
+        exit_pupil = diameter / magnification
+        # relative brightness
+        relative_brightness = exit_pupil ** 2
+        light_collection = diameter**2 / pupil_eye**2
+        # https://www.astro-blogger.de/oeffnungsverhaeltnis-austrittspupille-und-lichtsammelvermoegen-beim-teleskop/
+        add_magnitudes = 2.5 * log10(light_collection)
+        # twilight factor
+        twilight_factor = sqrt(magnification*diameter)
+        # field of view as seen through scope
+        field_of_view = real_field_of_view / magnification
+        # equivalent focal length of a lens
+        x = specs[dimension]
+        direction = c.MAP_DIMENSION2DIRECTION[dimension]
+        equivalent_focal_length = x / (2*tan(radians(field_of_view)/2))
+        # covered field width in given distance
+        covered_field = (distance*x)/equivalent_focal_length   
+
+        params_in = dict( zip( ( c.MAGNIFICATION,c.SCOPE_REAL_FIELD_OF_VIEW,c.SENSOR,c.DIMENSION,
+                                 c.PIXEL_NUMBER,c.OBJECT_DISTANCE,c.SCOPE_PUPIL_EYE),
+                                ( magnification,real_field_of_view,sensor_type,dimension,
+                                  megapixels,distance,pupil_eye) ) ) 
+
+        result_keys = ( c.SCOPE_EXIT_PUPIL,c.SCOPE_RELATIVE_BRIGHTNESS,c.SCOPE_TWILIGHT_FACTOR,
+                        c.SCOPE_LIGHT_COLLECTION_FACTOR,c.SCOPE_ADDITIONAL_MAGNITUDE,c.FIELD_OF_VIEW,
+                        c.EQUIVALENT_FOCAL_LENGTH,c.SCOPE_COVERED_FIELD )
+        
+        result = ( exit_pupil,relative_brightness,twilight_factor,
+                   light_collection,add_magnitudes,field_of_view,
+                   equivalent_focal_length,covered_field )     
+
+        params_out = dict(zip(result_keys,result))        
+        params_out = dict(map(lambda item: (item[0], round(item[1],2)), params_out.items()))
+        params_out[c.DIRECTION] = direction        
+
+        result = o.get_results(result_dict=params_out,with_keys=with_keys,
+                               tuple_name=c.SCOPE_PARAMETERS,key_dict=params_in)    
+
+        return result
+
+    # Further IDeas
+    # calculation: resolution dpi, can the eye discern it? 
+    # https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
+    # Resolution eye ~ 2  angle minute = 2* 360° / (24 * 60 )  = 0.3 deg   visus 2
+    # Visus 1' / individual resolution    
+    # https://de.wikipedia.org/wiki/Sehsch%C3%A4rfe
+    # stacking step width / number of single steps
+    # Calculation of magnification for spotting scopes / telescopes / eyepieces
+    #http://www.tierundnatur.de/fernglas.htm
