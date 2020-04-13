@@ -1234,6 +1234,8 @@ class OpticsCalculator:
         x = specs[dimension]
         direction = c.MAP_DIMENSION2DIRECTION[dimension]
         equivalent_focal_length = x / (2*tan(radians(field_of_view)/2))
+        # equivalent aperture
+        equivalent_aperture = equivalent_focal_length / diameter
         # covered field width in given distance
         covered_field = (distance*x)/equivalent_focal_length   
 
@@ -1244,11 +1246,11 @@ class OpticsCalculator:
 
         result_keys = ( c.SCOPE_EXIT_PUPIL,c.SCOPE_RELATIVE_BRIGHTNESS,c.SCOPE_TWILIGHT_FACTOR,
                         c.SCOPE_LIGHT_COLLECTION_FACTOR,c.SCOPE_ADDITIONAL_MAGNITUDE,c.FIELD_OF_VIEW,
-                        c.EQUIVALENT_FOCAL_LENGTH,c.SCOPE_COVERED_FIELD )
+                        c.EQUIVALENT_FOCAL_LENGTH,c.APERTURE_NUMBER,c.SCOPE_COVERED_FIELD )
         
         result = ( exit_pupil,relative_brightness,twilight_factor,
                    light_collection,add_magnitudes,field_of_view,
-                   equivalent_focal_length,covered_field )     
+                   equivalent_focal_length,equivalent_aperture,covered_field )     
 
         params_out = dict(zip(result_keys,result))        
         params_out = dict(map(lambda item: (item[0], round(item[1],2)), params_out.items()))
