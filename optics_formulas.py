@@ -246,10 +246,11 @@ class OpticsConstants:
     LENS_SIGMA8F35 = "Sigma8F35"
     LENS_CANON15 = "Canon15"
     LENS_NIKON10 = "Nikon10"
-    LENS_MADOKA = "Madoka"  
+    LENS_MADOKA = "Madoka"
+    LENS_PERGEAR = "Pergear10"  
     LENSES = [ 
         LENS_SAMYANG8, LENS_SAMYANG75, LENS_MEIKE65,LENS_SIGMA8F35,
-        LENS_CANON15,LENS_NIKON10,LENS_MADOKA ]
+        LENS_CANON15,LENS_NIKON10,LENS_MADOKA,LENS_PERGEAR]
 
     # Fisheye Lens Projections
     # http://pt4pano.com/de/blog/samyang-f2812mm-fullframe
@@ -261,6 +262,7 @@ class OpticsConstants:
     # Madoka F4/7.3mm -> R = f * sin ( alpha )
     # https://www.pt4pano.com/blog/2017/neue-fisheyes-fuer-panoramafotografie
     # Meike F2 / 6.5mm -> R = 1,4 * f * sin(alpha / 1,4 )    
+    # Pergear F8 / 10mm -> R = 1,5 * f * tan(alpha / 1,5) Feb 2021 - Own Measurement
     FISHEYE_LENS_SPECS = {LENS_SAMYANG8:{ FOCAL_LENGTH:8.,
                                           PROJECTION_FUNCTION:PROJECTION_STEREOGRAPHIC,
                                           PROJECTION_FACTOR:2.700},
@@ -281,7 +283,10 @@ class OpticsConstants:
                                           PROJECTION_FACTOR:1.500},
                           LENS_MADOKA:{   FOCAL_LENGTH:7.3,
                                           PROJECTION_FUNCTION:PROJECTION_ORTHOGRAPHIC,
-                                          PROJECTION_FACTOR:None}  } 
+                                          PROJECTION_FACTOR:None},
+                          LENS_PERGEAR:{  FOCAL_LENGTH:10.03,
+                                          PROJECTION_FUNCTION:PROJECTION_STEREOGRAPHIC,
+                                          PROJECTION_FACTOR:1.500}} 
 
     # Constants for Tilt Shift Lens Calculations 
     TILT_PARAMETERS = "TiltParameters"
