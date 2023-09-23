@@ -1,6 +1,6 @@
 """module that allows for calculation useful for photography
    commonly used abbreviations (also check out constants definitions):
-   k: Aperture Number 
+   k: Aperture Number
    sensor_type: sensor dimensions
    megapixels: sensor resolution
    f:focal length in mm
@@ -15,6 +15,11 @@
    D: Diopters of closeup lens in 1/map
    extension: extension of bellows/macro rings in mm
    alpha: Ray incident angle (relative to normal of lens surface)
-   parameter with_keys determines whether result will be given in dictionary alongside with 
+   parameter with_keys determines whether result will be given in dictionary alongside with
    input values (=True) or not (=False)
 """
+import logging
+from logging import NullHandler
+
+logger=logging.getLogger(__name__)
+logger.addHandler(NullHandler())
